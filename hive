@@ -1,0 +1,212 @@
+
+USECASE 1:
+
+1. Login to Mysql and execute the sql file to load the custpayments table:
+
+mysql -r root -p
+>>root
+source /home/hduser/hiveusecase/custpayments_ORIG.sql
+
+2. Write sqoop command to import data from customers table with 2 mappers, with enclosed
+by " (As we have ',' in the data itself we are importing in sqoop using --enclosed-by option into the
+location /user/hduser/custpayments).
+
+
+sqoop import --connect jdbc:mysql://localhost/custpayments --username root -P -table customers -m 2 --target-dir /user/hduser/custpayments --delete-target-dir --enclosed-by '"' --direct ; 
+
+
+3.Create a hive external table and load the sqoop imported data to the hive table called custpayments.
+As we have ',' in the data itself we are using quotedchar option below with the csv serde option as given
+below as example, create the table with all columns.
+
+
+ CREATE external TABLE custpayments (
+  customerNumber string  ,
+  customerName varchar(50)  ,
+  contactLastName varchar(50)  ,
+  contactFirstName varchar(50)  ,
+  phone varchar(50)  ,
+  addressLine1 varchar(50)  ,
+  addressLine2 varchar(50)  ,
+  city varchar(50)  ,
+  state varchar(50)  ,
+  postalCode varchar(15)  ,
+  country varchar(50)  ,
+  salesRepEmployeeNumber int ,
+  creditLimit decimal(10,2)  )
+ROW FORMAT SERDE 'org.apache.hadoop.hive.serde2.OpenCSVSerde'
+WITH SERDEPROPERTIES (
+"separatorChar" = ",",
+"quoteChar" = "\"")
+LOCATION '/user/hduser/custpayments/';
+
+
+4.Copy the payments.txt into hdfs location /user/hduser/paymentsdata/ and Create an external table
+namely payments with customernumber, checknumber, paymentdate, amount columns to point the
+imported payments data.
+
+ hdfs dfs -copyFromLocal payments.txt /user/hduser/paymentsdata/
+
+
+CREATE external TABLE payments(
+customernumber string, 
+checknumber varchar(100),
+paymentdate date,
+amount decimal(10,2))
+row format delimited fields terminated by ','
+location '/user/hduser/paymentsdata/'
+
+
+5.Create an external table called cust_payments in avro format and load data by doing inner join of
+custmaster and payments tables, using insert select customernumber,
+contactfirstname,contactlastname,phone, creditlimit from custmaster and paymentdate, amount
+columns from payments table
+
+create external table cust_payments(
+customernumber string,
+contactfirstname string,
+contactlastname string,
+phone string, 
+creditlimit decimal(10,2),
+paymentdate date, 
+amount decimal(10,2))
+row format delimited fields terminated by ','
+stored as avrofile;
+
+INSERT OVERWRITE INTO cust_payments SELECT c.customernumber,c.contactfirstname,c.contactlastname,c.phone, c.creditlimit p. paymentdate, p.amount from custmaster c inner join payments p on c.customernumber=p.customernumber;
+
+
+6. Create a view called custpayments_vw to only display customernumber,creditlimit,paymentdate and
+amount selected from cust_payments.
+
+create view custpayments_vw as select customernumber,creditlimit,paymentdate,amount from cust_payments;
+
+7. Extract only customernumber,creditlimit,paymentdate and amount columns either using the above
+view/cust_payments table into hdfs location /user/hduser/custpaymentsexport with '|' delimiter.
+
+INSERT OVERWRITE directory '/user/hduser/custpaymentsexport' row format delimited fields terminated by '|' select * from custpayments_vw;
+
+8. Export the data from the /user/hduser/custpaymentsexport location to mysql table called
+cust_payments using sqoop export with staging table option using records per statement 100 and mappers 3.
+
+create table cust_payments(
+customernumber VARCHAR(50),
+creditlimit decimal(10,2),
+paymentdate date, 
+amount decimal(10,2))
+
+create table cust_payments_stg(
+customernumber VARCHAR(50),
+creditlimit decimal(10,2),
+paymentdate date, 
+amount decimal(10,2))
+
+sqoop export -Dsqoop.export.records.per.statement=100 --connect jdbc:mysql://localhost/custpayments --username root -P -table cust_payments -m 3 --export-dir /user/hduser/custpaymentsexport  --batch --staging-table cust_payments_stg --clear-staging-table --fields-terminated-by '|';
+
+===================================================================================================================================================
+
+
+USECASE-2:
+
+vi /home/hduser/hiveusecase/cust_data.txt
+
+1 Lara
+chennai 55 2016-09-2110000
+2 vasudevan banglore 43 2016-09-2390000
+3 Paul
+chennai 33 2019-02-2020000
+4 David Hanna New Jersey29 2019-04-22
+
+
+create table cust_fixed_raw (rawdata string);
+
+load data local inpath '/home/hduser/hiveusecase/cust_data.txt' OVERWRITE INTO TABLE cust_fixed_raw;
+
+
+2. Create a temporary table called cust_delimited_parsed_temp with columns such as
+id,name,city,age,dt,amt and load the cust_fixed_raw table using substr
+
+create temporary table cust_delimited_parsed_temp as select trim(substr(rawdata,1,2)) as id,trim(substr(rawdata,3,11)) as nam  ,trim(substr(rawdata,14,11)) as city,trim(substr(rawdata,25,2)) as age ,trim(substr(rawdata,28,10)) as dt,trim(substr(rawdata,38,5)) as amt from cust_fixed_raw;
+
+####REF
+select trim(substr(rawdata,1,2)) as id,trim(substr(rawdata,3,11)) as name ,trim(substr(rawdata,14,11)) as city,trim(substr(rawdata,25,2)) as age,trim(substr(rawdata,28,10)) as dat ,trim(substr(rawdata,38,5)) as amt from cust_fixed_raw;
+
+3. Export only id, dt and amt column into a mysql table cust_fixed_mysql 
+
+insert overwrite directory '/user/hduser/cust_parsed_data_sqoop' row format delimited fields terminated by ',' select id,dt,amt from cust_delimited_parsed_temp;using sqoop export.
+
+create table cust_fixed_mysql 
+(id int,
+dt date,
+amt decimal(10,2));
+
+sqoop export --connect jdbc:mysql://localhost/custpayments --username root -P -m 1 -table cust_fixed_mysql --export-dir '/user/hduser/cust_parsed_data_sqoop' --fields-terminated-by ','
+
+
+4. Load only chennai data to another table called cust_parsed_orc of type orc format partitioned based on dt.
+
+create table cust_parsed_orc (id int,name string,city string,age int,amt decimal(10,2))
+partitioned by (dt date)
+row format delimited fields terminated by ','
+stored as orcfile;
+
+
+insert overwrite table cust_parsed_orc partition (dt) select id,nam,city,age,amt,dt from cust_delimited_parsed_temp where city='chennai' ;
+
+5. Create a json table called cust_parsed_json (to load into json use the following steps).
+
+add jar /home/hduser/hiveusecase/hive-hcatalog-core-1.2.1.jar
+
+
+create external table cust_parsed_json(id int, name string,city string, age int)
+ROW FORMAT SERDE 'org.apache.hive.hcatalog.data.JsonSerDe'
+stored as textfile
+location '/user/hduser/custjson';
+
+
+6. Insert into the cust_parsed_json only non chennai data using insert select of id,name,city, age from
+the cust_delimited_parsed_temp table.
+
+
+insert overwrite table cust_parsed_json  select id,nam,city,age from cust_delimited_parsed_temp where city != 'chennai' ;
+
+
+
+7. Schema migration:
+Convert the XML table called xml_bank created in the actual usecase to JSON data by the same way like
+step 5 using create table as select.
+
+
+create external table xml_json
+(customer_id STRING, income BIGINT, demographics map<string,string>,
+financial map<string,string>)
+ROW FORMAT SERDE 'org.apache.hive.hcatalog.data.JsonSerDe'
+stored as textfile
+location '/user/hduser/custxmljson'
+
+
+INSERT OVERWRITE TABLE xml_json SELECT * FROM xml_bank;
+
+
+8. Import data from mysql directly creating static partition based on city=chennai as given below for
+additional knowledge.
+
+
+sqoop import \
+--connect jdbc:mysql://localhost:3306/custdb \
+--username root \
+--password root \
+--query "select custid,firstname,age from customer where city='chennai' and \$CONDITIONS" \
+--target-dir /user/hduser/hiveext/ \
+--split-by custid \
+--hive-overwrite \
+--hive-import \
+--create-hive-table \
+--hive-partition-key city \
+--hive-partition-value 'chennai' \
+--fields-terminated-by ',' \
+--hive-table default.custinfo \
+--direct
+
+
+
