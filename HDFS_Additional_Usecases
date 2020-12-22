@@ -1,0 +1,272 @@
+HDFS Additional Use Cases
+-------------------------
+Q-1.
+
+[hduser@Inceptez ~]$ head -1000 ~/pigdata/NYSE_daily > ~/install/hdfsusecases/NYSE_2020_06_20.txt
+
+[hduser@Inceptez ~]$ wc -l ~/install/hdfsusecases/NYSE_2020_06_20.txt
+1000 /home/hduser/install/hdfsusecases/NYSE_2020_06_20.txt
+
+Q-2.
+
+[hduser@Inceptez ~]$ head -2000 ~/pigdata/NYSE_daily | tail -1000 > ~/install/hdfsusecases/NYSE_2020_06_21.txt
+
+[hduser@Inceptez ~]$ wc -l ~/install/hdfsusecases/NYSE_2020_06_21.txt
+1000 /home/hduser/install/hdfsusecases/NYSE_2020_06_21.txt
+
+Q-3.
+
+[hduser@Inceptez ~]$ hdfs dfs -ls /
+Found 2 items
+drwxr-xr-x   - hduser supergroup          0 2020-07-07 21:14 /system
+drwxr-xr-x   - hduser supergroup          0 2020-07-07 14:31 /user
+
+[hduser@Inceptez ~]$ hdfs dfs -mkdir -p /tmp/hdfsusecases
+
+[hduser@Inceptez ~]$ hdfs dfs -ls -R /tmp
+drwxr-xr-x   - hduser supergroup          0 2020-07-07 22:14 /tmp/hdfsusecases
+
+Q-4.
+Option-1:
+[hduser@Inceptez ~]$ hdfs dfs -test -d /tmp/hdfsusecases
+[hduser@Inceptez ~]$ echo $?
+0
+
+Option-2:
+[hduser@Inceptez ~]$ hdfs dfs -test -d /tmp/hdfsusecases
+[hduser@Inceptez ~]$ if [ $? == 0 ]; then echo "Directory /tmp/hdfsusecases is avilable"; else echo "Directory is NOT available" ; fi
+Directory /tmp/hdfsusecases is avilable
+
+
+Q-5.
+
+if [ $? == 0 ]
+then 
+echo "Directory /tmp/hdfsusecases is avilable"
+else 
+hdfs dfs -mkdir -p /tmp/hdfsusecases
+fi
+
+Q-6.
+Option 1:
+[hduser@Inceptez ~]$ hdfs dfs -copyFromLocal ~/install/hdfsusecases/NYSE_2020_06_20.txt /tmp/hdfsusecases/NYSE_2020_06.txt
+
+Option 2:
+[hduser@Inceptez ~]$ hdfs dfs -put ~/install/hdfsusecases/NYSE_2020_06_20.txt /tmp/hdfsusecases/NYSE_2020_06.txt
+
+[hduser@Inceptez ~]$ hdfs dfs -ls /tmp/hdfsusecases
+Found 1 items
+-rw-r--r--   1 hduser supergroup      57446 2020-07-07 22:38 /tmp/hdfsusecases/NYSE_2020_06.txt
+
+Q-7.
+
+[hduser@Inceptez ~]$ hdfs dfs -test -f /tmp/hdfsusecases/NYSE_2020_06.txt
+
+[hduser@Inceptez ~]$ if [ $? == 0 ]
+> then
+> hdfs dfs -touchz /tmp/hdfsusecases/_SUCCESS
+> else
+> hdfs dfs -touchz /tmp/hdfsusecases/_FAILURE
+> fi
+
+[hduser@Inceptez ~]$ hdfs dfs -ls /tmp/hdfsusecases
+Found 2 items
+-rw-r--r--   1 hduser supergroup      57446 2020-07-07 22:38 /tmp/hdfsusecases/NYSE_2020_06.txt
+-rw-r--r--   1 hduser supergroup          0 2020-07-07 22:43 /tmp/hdfsusecases/_SUCCESS
+
+Q-8.
+
+[hduser@Inceptez ~]$ hdfs dfs -cat /tmp/hdfsusecases/NYSE_2020_06.txt | wc -l
+1000
+
+[hduser@Inceptez ~]$ hdfs dfs -appendToFile ~/install/hdfsusecases/NYSE_2020_06_20.txt /tmp/hdfsusecases/NYSE_2020_06.txt
+
+[hduser@Inceptez ~]$ hdfs dfs -cat /tmp/hdfsusecases/NYSE_2020_06.txt | wc -l
+2000
+
+Q-9.
+
+[hduser@Inceptez ~]$ hdfs dfs -count -h /tmp/hdfsusecases/NYSE_2020_06.txt
+           0            1            112.2 K /tmp/hdfsusecases/NYSE_2020_06.txt
+
+
+Q-10.
+
+[hduser@Inceptez ~]$ hdfs dfs -cat /tmp/hdfsusecases/NYSE_2020_06.txt | wc -l
+2000
+
+
+Q-11.
+Option 1:
+[hduser@Inceptez ~]$ hdfs dfs -cat /tmp/hdfsusecases/NYSE_2020_06.txt | head -20 | tail -10  
+NYSE|CLI|2009-12-16|34.79|35.10|34.48|34.66|1007900|34.21
+NYSE|CLI|2009-12-15|34.60|34.91|34.39|34.84|813200|34.39
+NYSE|CLI|2009-12-14|34.21|34.90|33.86|34.82|987700|34.37
+NYSE|CLI|2009-12-11|33.55|34.08|33.40|34.00|836500|33.56
+NYSE|CLI|2009-12-10|33.61|33.80|33.09|33.26|1296300|32.83
+NYSE|CLI|2009-12-09|33.25|33.71|33.01|33.25|863900|32.82
+NYSE|CLI|2009-12-08|32.57|33.80|32.52|33.18|890000|32.75
+NYSE|CLI|2009-12-07|33.63|33.77|32.78|33.00|961800|32.57
+NYSE|CLI|2009-12-04|33.46|34.12|33.16|33.69|1412400|33.25
+NYSE|CLI|2009-12-03|32.55|33.43|32.48|32.65|1170600|32.22
+
+Option 2:
+[hduser@Inceptez ~]$ hdfs dfs -cat /tmp/hdfsusecases/NYSE_2020_06.txt | sed -n '11,20p'
+NYSE|CLI|2009-12-16|34.79|35.10|34.48|34.66|1007900|34.21
+NYSE|CLI|2009-12-15|34.60|34.91|34.39|34.84|813200|34.39
+NYSE|CLI|2009-12-14|34.21|34.90|33.86|34.82|987700|34.37
+NYSE|CLI|2009-12-11|33.55|34.08|33.40|34.00|836500|33.56
+NYSE|CLI|2009-12-10|33.61|33.80|33.09|33.26|1296300|32.83
+NYSE|CLI|2009-12-09|33.25|33.71|33.01|33.25|863900|32.82
+NYSE|CLI|2009-12-08|32.57|33.80|32.52|33.18|890000|32.75
+NYSE|CLI|2009-12-07|33.63|33.77|32.78|33.00|961800|32.57
+NYSE|CLI|2009-12-04|33.46|34.12|33.16|33.69|1412400|33.25
+NYSE|CLI|2009-12-03|32.55|33.43|32.48|32.65|1170600|32.22
+
+Q-12.
+
+[hduser@Inceptez ~]$ hdfs dfs -cat /tmp/hdfsusecases/NYSE_2020_06.txt | head -20 | tail -10 > ~/install/hdfsusecases/NYSE_sampledata1.txt
+
+[hduser@Inceptez ~]$ cat ~/install/hdfsusecases/NYSE_sampledata1.txt
+NYSE|CLI|2009-12-16|34.79|35.10|34.48|34.66|1007900|34.21
+NYSE|CLI|2009-12-15|34.60|34.91|34.39|34.84|813200|34.39
+NYSE|CLI|2009-12-14|34.21|34.90|33.86|34.82|987700|34.37
+NYSE|CLI|2009-12-11|33.55|34.08|33.40|34.00|836500|33.56
+NYSE|CLI|2009-12-10|33.61|33.80|33.09|33.26|1296300|32.83
+NYSE|CLI|2009-12-09|33.25|33.71|33.01|33.25|863900|32.82
+NYSE|CLI|2009-12-08|32.57|33.80|32.52|33.18|890000|32.75
+NYSE|CLI|2009-12-07|33.63|33.77|32.78|33.00|961800|32.57
+NYSE|CLI|2009-12-04|33.46|34.12|33.16|33.69|1412400|33.25
+NYSE|CLI|2009-12-03|32.55|33.43|32.48|32.65|1170600|32.22
+
+Q-13.
+[hduser@Inceptez ~]$ hdfs dfs -copyToLocal /tmp/hdfsusecases/NYSE_2020_06.txt ~/install/hdfsusecases/NYSE_2020_06_tmp.txt
+
+[hduser@Inceptez ~]$ sed -i '1d' ~/install/hdfsusecases/NYSE_2020_06_tmp.txt
+
+[hduser@Inceptez ~]$ wc -l ~/install/hdfsusecases/NYSE_2020_06_tmp.txt
+1999 /home/hduser/install/hdfsusecases/NYSE_2020_06_tmp.txt
+
+[hduser@Inceptez ~]$ hdfs dfs -copyFromLocal -f ~/install/hdfsusecases/NYSE_2020_06_tmp.txt /tmp/hdfsusecases/NYSE_2020_06.txt
+
+[hduser@Inceptez ~]$ hdfs dfs -cat /tmp/hdfsusecases/NYSE_2020_06.txt | wc -l
+1999
+
+Q-14.
+[hduser@Inceptez ~]$ hdfs dfs -cp /tmp/hdfsusecases/NYSE_2020_06.txt /tmp/hdfsusecases/NYSE_2020_06_bkp.txt
+
+[hduser@Inceptez ~]$ hdfs dfs -ls /tmp/hdfsusecases
+Found 3 items
+-rw-r--r--   1 hduser supergroup     114835 2020-07-07 23:08 /tmp/hdfsusecases/NYSE_2020_06.txt
+-rw-r--r--   1 hduser supergroup     114835 2020-07-07 23:10 /tmp/hdfsusecases/NYSE_2020_06_bkp.txt
+-rw-r--r--   1 hduser supergroup          0 2020-07-07 22:43 /tmp/hdfsusecases/_SUCCESS
+
+Q-15.
+[hduser@Inceptez ~]$ hdfs dfs -cat /tmp/hdfsusecases/NYSE_2020_06_bkp.txt | wc -l
+1999
+[hduser@Inceptez ~]$ hdfs dfs -cat /tmp/hdfsusecases/NYSE_2020_06.txt | wc -l
+1999
+
+[hduser@Inceptez ~]$ hdfs dfs -getmerge /tmp/hdfsusecases/NYSE_2020_06_bkp.txt /tmp/hdfsusecases/NYSE_2020_06.txt ~/install/hdfsusecases/NYSE_2020_06_merged.txt
+
+[hduser@Inceptez ~]$ wc -l ~/install/hdfsusecases/NYSE_2020_06_merged.txt
+3998 /home/hduser/install/hdfsusecases/NYSE_2020_06_merged.txt
+
+Q-16.
+
+[hduser@Inceptez ~]$ hadoop fs -D dfs.block.size=67108864 -put /home/hduser/install/hadoop-2.7.1.tar.gz /user/hduser/
+
+It created 4 blocks namely:
+Block 0, Block 1, Block 2 and Block 3
+
+Q-17.
+
+[hduser@Inceptez ~]$ hadoop fs -D dfs.block.size=134217728 -put -f /home/hduser/install/hadoop-2.7.1.tar.gz /user/hduser/
+
+It created 2 blocks namely:
+Block 0, Block 1
+
+Q-18.
+
+[hduser@Inceptez ~]$ hadoop fs -D dfs.replication=3 -put -f /home/hduser/install/hadoop-2.7.1.tar.gz /user/hduser/
+
+The file was created with 3 replication 
+
+Q-19.
+
+[hduser@Inceptez ~]$ hdfs fsck - -files -locations -blocks /user/hduser/hadoop-2.7.1.tar.gz
+Connecting to namenode via http://localhost:50070/fsck?ugi=hduser&files=1&locations=1&blocks=1&path=%2Fuser%2Fhduser%2Fhadoop-2.7.1.tar.gz
+FSCK started by hduser (auth:SIMPLE) from /127.0.0.1 for path /user/hduser/hadoop-2.7.1.tar.gz at Tue Jul 07 23:31:42 IST 2020
+/user/hduser/hadoop-2.7.1.tar.gz 210606807 bytes, 2 block(s):  Under replicated BP-1969373842-127.0.0.1-1594112396444:blk_1073741839_1017. Target Replicas is 3 but found 1 replica(s).
+ Under replicated BP-1969373842-127.0.0.1-1594112396444:blk_1073741840_1018. Target Replicas is 3 but found 1 replica(s).
+0. BP-1969373842-127.0.0.1-1594112396444:blk_1073741839_1017 len=134217728 repl=1 [DatanodeInfoWithStorage[127.0.0.1:50010,DS-ac0c362f-a60e-4143-b036-4325b83501bc,DISK]]
+1. BP-1969373842-127.0.0.1-1594112396444:blk_1073741840_1018 len=76389079 repl=1 [DatanodeInfoWithStorage[127.0.0.1:50010,DS-ac0c362f-a60e-4143-b036-4325b83501bc,DISK]]
+
+Status: HEALTHY
+ Total size:	210606807 B
+ Total dirs:	0
+ Total files:	1
+ Total symlinks:		0
+ Total blocks (validated):	2 (avg. block size 105303403 B)
+ Minimally replicated blocks:	2 (100.0 %)
+ Over-replicated blocks:	0 (0.0 %)
+ Under-replicated blocks:	2 (100.0 %)
+ Mis-replicated blocks:		0 (0.0 %)
+ Default replication factor:	1
+ Average block replication:	1.0
+ Corrupt blocks:		0
+ Missing replicas:		4 (66.666664 %)
+ Number of data-nodes:		1
+ Number of racks:		1
+FSCK ended at Tue Jul 07 23:31:42 IST 2020 in 23 milliseconds
+
+
+The filesystem under path '/user/hduser/hadoop-2.7.1.tar.gz' is HEALTHY
+
+Q-20.
+
+[hduser@Inceptez ~]$ hadoop distcp hdfs://localhost:54310/user/hduser/hadoop-2.7.1.tar.gz hdfs://localhost:54310/user/hduser/hadoop/
+
+[hduser@Inceptez ~]$ hdfs dfs -ls -h /user/hduser/hadoop/
+-rw-r--r--   1 hduser hadoop    200.9 M 2020-07-07 23:45 /user/hduser/hadoop
+
+
+Q-21.
+
+[hduser@Inceptez ~]$ hadoop distcp -overwrite hdfs://localhost:54310/user/hduser/hadoop-2.7.1.tar.gz hdfs://localhost:54310/user/hduser/hadoop/
+
+[hduser@Inceptez ~]$ hdfs dfs -ls -h /user/hduser/hadoop/
+-rw-r--r--   1 hduser hadoop    200.9 M 2020-07-07 23:49 /user/hduser/hadoop
+
+Q-22.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

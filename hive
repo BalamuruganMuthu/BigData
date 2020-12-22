@@ -101,7 +101,16 @@ creditlimit decimal(10,2),
 paymentdate date, 
 amount decimal(10,2))
 
-sqoop export -Dsqoop.export.records.per.statement=100 --connect jdbc:mysql://localhost/custpayments --username root -P -table cust_payments -m 3 --export-dir /user/hduser/custpaymentsexport  --batch --staging-table cust_payments_stg --clear-staging-table --fields-terminated-by '|';
+sqoop export -Dsqoop.export.records.per.statement=100 
+--connect jdbc:mysql://localhost/custpayments 
+--username root -P 
+-table cust_payments 
+-m 3 
+--export-dir /user/hduser/custpaymentsexport  
+--batch 
+--staging-table cust_payments_stg 
+--clear-staging-table 
+--fields-terminated-by '|';
 
 ===================================================================================================================================================
 
